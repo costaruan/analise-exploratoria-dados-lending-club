@@ -1,0 +1,725 @@
+---
+title: "Análise Exploratória de Dados - Lending Club"
+author: "Ruan Costa"
+date: "Dezembro de 2018"
+output: html_document
+runtime: shiny
+---
+
+![](./assets/images/logo/lending-club.png)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Resumo
+
+Lending Club - Empréstimos Peer-to-Peer e Investimento Alternativo
+
+# Introdução
+
+A Lending Club é uma empresa de empréstimos peer-to-peer dos EUA, sediada em São Francisco, Califórnia. Foi o primeiro credor peer-to-peer a registrar suas ofertas como títulos na Securities and Exchange Commission (SEC) e a oferecer operações de empréstimo em um mercado secundário. A Lending Club opera em uma plataforma de empréstimo on-line que permite que os tomadores de empréstimos obtenham um empréstimo e que os investidores comprem títulos garantidos pelos pagamentos. A Lending Club é a maior plataforma de empréstimo peer-to-peer do mundo, reduzindo custos e fazendo empréstimos para indivíduos com análise avançada de dados. A função das empresas peer-to-peer é combinar pessoas que têm dinheiro com pessoas que necessitam de dinheiro. Como líder nesse setor, a Lending Club concluiu sua oferta pública inicial em dezembro de 2014, o que melhorou significativamente a confiança do público nessa empresa em rápido crescimento.
+
+Neste projeto, vamos explorar os dados publicados pela Lending Club e tentar descobrir algumas ideias valiosas e inspiradoras.
+
+Através desta análise, espera-se obter uma melhor compreensão de:
+
+1. Que tipos de empréstimos a Lending Club está concedendo?
+2. Que tipos de pessoas tomaram esses empréstimos?
+3. Como a Lending Club cria empréstimos que são favoráveis para os investidores?
+
+## Bibliotecas
+
+``` R
+library(dplyr)
+library(ggmap)
+library(ggplot2)
+library(gridExtra)
+library(maps)
+library(mapdata)
+library(reshape2)
+library(stringr)
+library(treemap)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+library(dplyr)
+library(ggmap)
+library(ggplot2)
+library(gridExtra)
+library(maps)
+library(mapdata)
+library(reshape2)
+library(stringr)
+library(treemap)
+```
+
+## Conjunto de dados
+
+O arquivo *loan.csv* é uma matriz de cerca de **890 mil** observações e **74** variáveis. O tamanho deste conjunto de dados é cerca de **421MB**.
+
+``` R
+# Load the dataset
+loan_data <- read.csv("./datasets/loan.csv", sep = ",")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Load the dataset
+loan_data <- read.csv("./datasets/loan.csv", sep = ",")
+
+# The dataset dimension
+dim(loan_data)
+```
+
+## Dicionário de dados
+
+- **addr_state** - Estado fornecido pelo tomador de empréstimo na obtenção do empréstimo.
+- **annual_inc** - Renda anual auto-declarada fornecida pelo tomador de empréstimo durante o registro.
+- **annual_inc_joint** - Renda anual auto-declarada combinada fornecida pelos co-tomadores de empréstimo durante o registro.
+- **application_type** - Indica se o empréstimo é uma aplicação individual ou uma solicitação conjunta com dois co-tomadores de empréstimo.
+- **collection_recovery_fee** - Taxa de cobrança pós-baixa.
+- **collections_12_mths_ex_med** - Número de coleções em 12 meses excluindo coleções médicas.
+- **delinq_2yrs** - Número de incidentes de mais de 30 dias de atraso na inadimplência no arquivo de crédito do tomador de empréstimo nos últimos 2 anos.
+- **desc** - Descrição do empréstimo fornecida pelo tomador de empréstimo.
+- **dti** - Razão calculada utilizando os pagamentos mensais totais da dívida do tomador de empréstimo em relação ao total das obrigações de dívida, excluindo a hipoteca e o empréstimo LC solicitado, dividido pelo rendimento mensal auto-declarado do tomador de empréstimo.
+- **dti_joint** - Razão calculada utilizando os pagamentos mensais totais da dívida dos co-tomadores de empréstimo em relação ao total das obrigações de dívida, excluindo a hipoteca e o empréstimo LC solicitado, dividido pelo rendimento mensal auto-declarado combinado dos co-tomadores de empréstimo.
+- **earliest_cr_line** - Mês em que a linha de crédito mais antiga do tomador de empréstimo foi aberta.
+- **emp_length** - Duração do emprego em anos. Os valores possíveis são entre 0 e 10, onde 0 significa menos de um ano e 10 significa dez ou mais anos.
+- **emp_title** - Cargo fornecido pelo tomador de empréstimo ao solicitar o empréstimo.
+- **fico_range_high** - Intervalo de limite superior do FICO que o tomador de empréstimo pertence na origem do empréstimo.
+- **fico_range_low** - Intervalo de limite inferior do FICO que o tomador de empréstimo pertence na origem do empréstimo.
+- **funded_amnt** - Montante total comprometido para esse empréstimo naquele momento.
+- **funded_amnt_inv** - Montante total comprometido pelos investidores para esse empréstimo naquele momento.
+- **grade** - Categoria de empréstimo atribuída pelo LC.
+- **home_ownership** - Situação da propriedade da casa fornecida pelo tomador de empréstimo durante o registro. Nossos valores são: RENT, OWN, MORTGAGE, OTHER.
+- **id** - ID exclusivo atribuído pelo LC para a listagem de empréstimos.
+- **initial_list_status** - Situação da listagem inicial do empréstimo. Valores possíveis são: W, F.
+- **inq_last_6mths** - Número de consultas nos últimos 6 meses (excluindo consultas de automóveis e hipotecas).
+- **installment** - Pagamento mensal devido pelo tomador de empréstimo se o empréstimo for originário.
+- **int_rate** - Taxa de juros sobre o empréstimo.
+- **is_inc_v** - Indica se a receita foi verificada pelo LC, não verificada, ou se a fonte de receita foi verificada.
+- **issue_d** - Mês em que o empréstimo foi financiado.
+- **last_credit_pull_d** - Mês mais recente em que a LC ganhou crédito por esse empréstimo.
+- **last_fico_range_high** - Intervalo de limite superior do último FICO que o tomador de empréstimo pertence.
+- **last_fico_range_low** - Intervalo de limite inferior do último FICO que o tomador de empréstimo pertence.
+- **last_pymnt_amnt** - Último valor total do pagamento recebido.
+- **last_pymnt_d** - Pagamento do último mês foi recebido.
+- **loan_amnt** - Montante listado do empréstimo solicitado pelo tomador de empréstimo. Se, em algum momento, o departamento de crédito reduzir o valor do empréstimo, ele será refletido nesse valor.
+- **loan_status** - Situação atual do empréstimo.
+- **member_id** - ID único atribuído pelo LC para o membro tomador de empréstimo.
+- **mths_since_last_delinq** - Número de meses desde a última inadimplência do tomador de empréstimo.
+- **mths_since_last_major_derog** - Meses desde a mais recente classificação de 90 dias ou pior.
+- **mths_since_last_record** - Número de meses desde o último registro público.
+- **next_pymnt_d** - Próxima data de pagamento agendado.
+- **open_acc** - Número de linhas de crédito abertas no arquivo de crédito do tomador de empréstimo.
+- **out_prncp** - Restante principal pendente para o montante total financiado.
+- **out_prncp_inv** - Restante principal pendente para parcela do montante total financiado por investidores.
+- **policy_code** - Publicamente disponível policy_code = 1 | Novos produtos não publicamente disponíveis policy_code = 2.
+- **pub_rec** - Número de registros públicos depreciativos.
+- **purpose** - Categoria fornecida pelo tomador de empréstimo para a solicitação de empréstimo.
+- **pymnt_plan** - Indica se um plano de pagamento foi colocado em vigor para o empréstimo.
+- **recoveries** - Recuperação bruta pós-baixa.
+- **revol_bal** - Saldo total de crédito rotativo.
+- **revol_util** - Taxa de utilização da linha rotativa, ou a quantidade de crédito que o tomador de empréstimo está usando relativo ao total de crédito rotativo disponível.
+- **sub_grade** - Subcategoria de empréstimo atribuída pelo LC.
+- **term** - Número de pagamentos do empréstimo. Os valores são em meses e podem ser 36 ou 60.
+- **title** - Título do empréstimo fornecido pelo tomador de empréstimo.
+- **total_acc** - Número total de linhas de crédito atualmente no arquivo de crédito do tomador de empréstimo.
+- **total_pymnt** - Pagamentos recebidos até o momento pelo valor total financiado.
+- **total_pymnt_inv** - Pagamentos recebidos até o momento por parcela do valor total financiado pelos investidores.
+- **total_rec_int** - Juros recebidos até o momento.
+- **total_rec_late_fee** - Taxas atrasadas recebidas até o momento.
+- **total_rec_prncp** - Principal recebido até o momento.
+- **url** - URL para a página do LC com listagem de dados.
+- **verified_status_joint** - Indica se a renda conjunta dos co-tomador de empréstimo foi verificada pelo  LC, não verificado, ou se a fonte de renda foi verificada.
+- **zip_code** - Primeiros 3 números do código postal fornecido pelo tomador de empréstimo no pedido de empréstimo.
+- **open_acc_6m** - Número de clientes abertos nos últimos 6 meses.
+- **open_il_6m** - Número de negociações com prestações ativas atualmente.
+- **open_il_12m** - Número de contas parceladas abertas nos últimos 12 meses.
+- **open_il_24m** - Número de contas parceladas abertas nos últimos 24 meses.
+- **mths_since_rcnt_il** - Meses desde a abertura das contas de parcelas mais recentes.
+- **total_bal_il** - Saldo atual total de todas as contas de parcelas.
+- **il_util** - Razão entre saldo atual total e crédito alto / limite de crédito em todas as contas de parcelas.
+- **open_rv_12m** - Número de negociações rotativas abertas nos últimos 12 meses.
+- **open_rv_24m** - Número de negociações rotativas abertas nos últimos 24 meses.
+- **max_bal_bc** - Saldo atual máximo devido em todas as contas rotativas.
+- **all_util** - Saldo para limite de crédito em todos os negócios.
+- **total_rev_hi_lim** - Total de crédito rotativo elevado / limite de crédito.
+- **inq_fi** - Número de consultas de finanças pessoais.
+- **total_cu_tl** - Número de negociações financeiras.
+- **inq_last_12m** - Número de pedidos de crédito nos últimos 12 meses.
+- **acc_now_delinq** - Número de contas em que o tomador de empréstimo é agora delinquente.
+- **tot_coll_amt** - Montantes totais de cobranças devidos.
+- **tot_cur_bal** - Saldo atual total de todas as contas.
+
+# Distribuição das variáveis de empréstimo
+
+No conjunto de dados da Lending Club existem três variáveis absolutas relacionadas aos empréstimos: *montante do empréstimo* (*loan_amnt*), *valor financiado* (*funded_amnt*) e *total comprometido pelos investidores* (*funded_amnt_inv*).
+
+Ao analisar os histogramas, observa-se que essas três variáveis estão distribuídas de forma equivalente, o que mostra que existe um equilíbrio pertinente entre os empréstimos concedidos e o crédito que a empresa possui através de seus investidores.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Plot multiple graphs
+par(mfrow = c(1, 3))
+
+# Histogram: Loan Amount Requested by Borrower
+hist(loan_data$loan_amnt,
+     main = "Loan Amount Requested by Borrower",
+     xlab = "Amount",
+     ylab = "Probabilities",
+     col = "red",
+     prob = TRUE)
+
+lines(density(loan_data$loan_amnt, adjust=2), col="black", lty = "dotted")
+
+# Histogram: Amount Funded by Lending Club
+hist(loan_data$funded_amnt,
+     main = "Amount Funded by Lending Club",
+     xlab = "Amount",
+     ylab = "Probabilities",
+     col = "orange",
+     prob = TRUE)
+
+lines(density(loan_data$funded_amnt, adjust=2), col="black", lty = "dotted")
+
+# Histogram: Total Committed by Investors
+hist(loan_data$funded_amnt_inv,
+     main = "Total Committed by Investors",
+     xlab = "Amount",
+     ylab = "Probabilities",
+     col = "blue",
+     prob = TRUE)
+
+lines(density(loan_data$funded_amnt_inv, adjust=2), col="black", lty = "dotted")
+```
+
+- Acima, os histogramas de probabilidades estão representando as distribuições de probabilidades das respectivas variáveis.
+
+# Gráficos univariados e análise
+
+### Montante e quantidade de empréstimos
+
+Os gráficos abaixo mostram, respectivamente, o montante total e a quantidade dos empréstimos realizados nos períodos de tempo descritos no eixo das abscissas.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Separates the month from the issue_d variable
+loan_data$issue_month <- factor(str_sub(loan_data$issue_d, 1, 3))
+
+# Separates the year from the issue_d variable
+loan_data$issue_year <- strtoi(str_sub(loan_data$issue_d, start = -4))
+
+# Group loans by month and year
+amount_volume <- loan_data %>%
+  select(loan_amnt, issue_month, issue_year) %>%
+  group_by(issue_year, issue_month) %>%
+  arrange(issue_year, issue_month) %>%
+  summarise(count = n(), sum_amount = sum(loan_amnt)) %>%
+  mutate(date = paste(issue_month, issue_year, sep = "-"))
+
+# Plot the amount graph
+ggplot(data = amount_volume, aes(x = reorder(date, issue_year), y = sum_amount, group = 1)) + 
+  geom_line(color = "red") + 
+  scale_x_discrete(breaks = c("Jul-2007", "Jul-2008", "Jul-2009", 
+                              "Jul-2010", "Jul-2011", "Jul-2012", 
+                              "Jul-2013", "Jul-2014", "Jul-2015"),
+                   labels = c("2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015")) + 
+  labs(title = "Loan Amount", x = "Issue Date", y = "Amount ($)")
+
+# Plot the volume graph
+ggplot(data = amount_volume, aes(x = reorder(date, issue_year), y = count, group = 1)) + 
+  geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = FALSE, color = "black", size = 1.2) + 
+  geom_line(color = "blue") + 
+  scale_x_discrete(breaks = c("Jul-2007", "Jul-2008", "Jul-2009", 
+                              "Jul-2010", "Jul-2011", "Jul-2012", 
+                              "Jul-2013", "Jul-2014", "Jul-2015"),
+                   labels = c("2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015")) + 
+  labs(title = "Loan Volume", x = "Issue Date", y = "Volume")
+```
+
+- A primeira análise a ser feita com os dados do gráfico **Loan Volume** é a partir da **linha de tendência** que representa o comportamento dos empréstimos concedidos, indicando que o número de empréstimos feitos através da Lending Club está aumentando exponencialmente.
+
+- Pode-se observar que os empréstimos realizados aumentaram de forma estável entre os anos de 2007 até 2012. E a partir de 2012 houve um grande crescimento na quantidade de empréstimos até 2015. Entretanto, pode-se ver que o crescimento durante os picos foi muito instável.
+
+- Desde o início de 2014 até meados de 2014, observa-se o aumento no volume de pedidos de empréstimo e, logo após, há uma queda acentuada nos pedidos, com o padrão se repetindo.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#gtvy: Grade | Term| Volume | Year
+# Compare loans with different terms
+gtvy <- loan_data %>% select(issue_year, grade, term)
+gtvy <- gtvy[complete.cases(gtvy),]
+gtvy <- gtvy[!gtvy$issue_year == 2016,]
+
+graphic_gtvy <- ggplot(gtvy, aes(x = issue_year))
+graphic_gtvy + geom_bar(aes(fill = grade)) + 
+  facet_grid( ~ term) + 
+  labs(title = 'Loan Volume by Year', x = 'Issued Year', y = 'Volume') + 
+  theme_bw()
+```
+
+### Montante médio de empréstimos
+
+O gráfico abaixo mostra o montante médio de empréstimos realizados nos períodos de tempo descritos no eixo das abscissas.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Plot the average amount graph 
+ggplot(data = amount_volume, aes(x = reorder(date, issue_year), y = (sum_amount / count), group = 1)) + 
+  geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = FALSE, color = "red", linetype = "dashed", size = 1.2) + 
+  geom_point(color = "black") + 
+  scale_x_discrete(breaks = c("Jul-2007", "Jul-2008", "Jul-2009", 
+                              "Jul-2010", "Jul-2011", "Jul-2012", 
+                              "Jul-2013", "Jul-2014", "Jul-2015"),
+                   labels = c("2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015")) + 
+  labs(title = "Average Loan", x = "Issue Date", y = "Average Amount ($)")
+```
+
+- O valor médio de empréstimo cresceu, aparentemente, a uma taxa constante de 2007 a 2012, mas decresceu a uma certa taxa entre 2013 e 2014, em relação aos anos anteriores. A partir de 2015, o valor médio de empréstimo permaneceu praticamente inalterado, com mínimas variações.
+
+### Tipos de empréstimos
+
+Agora que se sabe sobre o montante e a quantidade de empréstimos que a Lending Club concedeu e, quando eles foram realizados, é necessário compreender que tipos de empréstimos foram feitos.
+
+Todos os empréstimos são classificados por estabilidade e risco pelos credores, utilizando fatores como *histórico de crédito*, *garantia*, *probabilidade de reembolso*, dentre outros.
+
+Abaixo, seguem os gráficos de *categoria* e *subcategoria* que classificam os tipos de empréstimos.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loan_data, aes(x = loan_data$grade)) + 
+  geom_bar(fill = "black") +
+  labs(title = "Loans' Grades", x = "Grade", y = "Frequency")
+
+ggplot(loan_data, aes(x = loan_data$sub_grade)) + 
+  geom_bar(fill = "black") +
+  labs(title = "Loan's Subgrades", x = "Subgrade", y = "Frequency")
+```
+
+As distribuições dos dados para as variáveis `grade` (*categoria*) e `subgrade` (*subcategoria*) são **assimétricas e positivas**.
+
+`grade`
+
+- A maior parte dos empréstimos pertencem as *categorias* **B** ou **C**.
+
+`subgrade`
+
+- Empréstimos de *categoria* **A1**, **A2** e **A3** não são tão comuns e a cauda também diminui rapidamente com poucos empréstimos nas *categorias* **F** e **G**.
+
+Isso demonstra que os investidores tem maior probabilidade de assumir empréstimos mais seguros do que fazer, talvez, mais dinheiro com opções mais arriscadas.
+
+### Risco dos investidores
+
+O gráfico abaixo mostra a relação entre os *status* e a quantidade de empréstimos pertencentes a cada um deles.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loan_data, aes(x = loan_status)) + 
+  geom_bar(fill = "black") + 
+  scale_x_discrete(limits = c("Current", "Fully Paid", "Charged Off",
+                              "Late (31-120 days)", "Issued", "In Grace Period",
+                              "Late (16-30 days)", "Default"),
+                   labels = c("Current", "Fully\nPaid", "Charged\nOff",
+                              "Late\n(31-120 days)", "Issued", "In Grace\nPeriod",
+                              "Late\n(16-30 days)", "Default")) + 
+  labs(title = "Loan's Status", x = "Status", y = "Count")
+
+ggplot(data = loan_data, aes(x = loan_status)) + 
+  geom_bar(aes(y = (..count..) / sum(..count..)), fill = "black") +
+  geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent((..count..)/sum(..count..))), stat = "count", vjust = -0.25) +
+  scale_x_discrete(limits = c("Current", "Fully Paid", "Charged Off",
+                              "Late (31-120 days)", "Issued", "In Grace Period",
+                              "Late (16-30 days)", "Default"),
+                   labels = c("Current", "Fully\nPaid", "Charged\nOff",
+                              "Late\n(31-120 days)", "Issued", "In Grace\nPeriod",
+                              "Late\n(16-30 days)", "Default")) + 
+  labs(title = "Loan's Status", x = "Status", y = "Percentage") + 
+  scale_y_continuous(labels = scales::percent)
+
+summary(loan_data$loan_status)
+```
+
+- A distribuição mostra que a maioria dos empréstimos da Lending Club, **68%**, está atualmente em andamento e em dia com todos os pagamentos. Logo, os números caem abruptamente levando a uma cauda extensa.
+
+- Cerca de **285.000** empréstimos foram concluídos, onde **73,43%** deles foram pagos em dia, **16,10%** dos pagamentos foram *Charged Off* (150+ dias em atraso e com pouca expectativa de reembolso) e os demais pagamentos de empréstimos se enquadram nos **10,47%** restantes. O que demonstra que a maioria dos empréstimos feitos através da Lending Club são seguros para os investidores.
+
+Para um melhor entendimento do potencial de investimento nos empréstimos da Lending Club, deve-se olhar para os retornos esperados para os investidores. A Lending Club atribui uma taxa de juros para cada empréstimo, baseado na categoria do empréstimo e no histórico de crédito do tomador de empréstimo.
+
+### Taxas de juros e quantidadede empréstimos
+
+O gráfico abaixo mostra as *taxas de juros* cobradas e a quantidade de empréstimos feitos referentes as mesmas.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loan_data, aes(int_rate)) +
+  geom_histogram(fill = "black") + 
+  geom_vline(xintercept = median(loan_data$int_rate), color = "red") + 
+  geom_vline(xintercept = mean(loan_data$int_rate), color = "yellow") + 
+  labs(x = "Interest Rate (%)", y = "Volume")
+
+summary(loan_data$int_rate)
+```
+
+- A linha vermelha representa a mediana e a linha amarela a média dos valores.
+
+- Com a média, mediana e moda todas centradas em torno do valor de 13%, a distribuição se aproxima da normal entre **5%** e **20%**, possuindo uma *queda acentuada* após o valor de **20%**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+intRateAboveTwenty = sum(loan_data$int_rate >= 20.0)
+percentageInTotal = intRateAboveTwenty / sum(loan_data$int_rate >= 0.0)
+
+cat("Loans with the Interest Rate above or equal 20.0%:", intRateAboveTwenty, "\n")
+
+cat("Percentage in total (%):", percentageInTotal * 100, "\n")
+```
+
+- Apenas **6,60%** dos empréstimos possuem uma taxa de juros igual ou acima de **20%**.
+
+O gráfico abaixo mostra o valor monetário emprestado através dos serviços da Lending Club.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loan_data, aes(loan_amnt)) + 
+  geom_histogram(fill = "black") + 
+  labs(x = "Loan Amount ($)", y = "Volume") + 
+  geom_vline(xintercept = median(loan_data$loan_amnt), color = "red") + 
+  geom_vline(xintercept = mean(loan_data$loan_amnt), color = "yellow")
+
+summary(loan_data$loan_amnt)
+```
+
+- Deste gráfico observa-se os picos dos valores "padrões" - **U$10.000**, **U$15.000** e **20.000** - em decaimento, em relação a suas quantidades.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cat("Median:", median(loan_data$loan_amnt), "\n")
+cat("Mean:", mean(loan_data$loan_amnt), "\n")
+```
+
+- A linha vermelha no gráfico acima indica a mediana de **U$13.000** e a linha azul a média de **U$14.755**. A distribuuição é assimétrica à direita, com uma quantidade maior de empréstimos sendo menor que a média de **U$14.755**.
+
+- Um outro pico aparece no limite máximo permitido para empréstimos que é de **U$35.000**.
+
+---
+
+# Gráficos multivariados e análise
+
+Apesar da análise individual das variáveis do conjunto de dados nos forneça intuições e compreensão importantes sobre os dados, não podemos compreender o que os dados realmente podem nos dizer sem observar as variáveis em relação umas às outras.
+
+### Localização dos tomadores de empréstimo
+
+O gráfico abaixo mostra a distribuição geográfica dos tomadores de empréstimo. Como a Lending Club está localizada no EUA, o mapa exibido é deste país.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Map code adapted from http://eriqande.github.io/rep-res-web/lectures/making-maps-with-R.html
+# Population data taken from https://raw.githubusercontent.com/BuzzFeedNews/2015-11-refugees-in-the-united-states/master/data/census-state-populations.csv
+states <- map_data("state")
+state_pop <- read.csv("./datasets/census-state-populations.csv")
+colnames(state_pop) <- c("addr_state", "population")
+state_data <- loan_data %>%
+  select(addr_state, loan_amnt) %>%
+  group_by(addr_state) %>%
+  summarise(count = n(), total = sum(loan_amnt))
+state_data$addr_state <- state.name[match(state_data$addr_state, state.abb)]
+state_data <- merge(state_data, state_pop, by = "addr_state")
+state_data$addr_state <- tolower(state_data$addr_state)
+colnames(state_data) <- c("region", "count", "total", "population")
+state_data <- inner_join(states, state_data, by = "region")
+# Remove axes but leave legend
+ditch_the_axes <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank())
+
+ggplot(data = state_data) +
+  geom_polygon(aes(x = long, y = lat, fill = total, group = group), 
+               color = "white") +
+  coord_fixed(1.3) +
+  theme_bw() +
+  ditch_the_axes +
+  
+  scale_fill_distiller("Total Loans ($)", trans = "reverse")
+
+ggplot(data = state_data) +
+  geom_polygon(aes(x = long, y = lat, fill = total / population, group = group), 
+               color = "white") +
+  coord_fixed(1.3) +
+  theme_bw() +
+  ditch_the_axes +
+  scale_fill_distiller("Total Loans ÷ Population", trans = "reverse")
+```
+
+- A partir deste mapa, é possível observar que os maiores montantes de empréstimos vêm dos estados da Califórnia, Nova York e Texas. E isto é esperado, pois estes estão entre os estados mais populosos dos EUA, o que não evidencia uma relação entre estados e os empréstimos feitos pela Lending Club.
+
+### Retornos lucrativos
+
+Como a Lending Club é uma empresa que faz parte da bolsa de valores dos EUA (*Securities and Exchange Commission*) e possui acionistas aos quais deve prestar contas, esta deve ser uma empresa lucrativa. E uma forma de satisfazer essa necessidade é criar condições favoráveis para que os seus investidores obtenham mais retornos sobre seus investimentos.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loan_data, aes(x = term, y = int_rate)) + 
+  geom_boxplot() + 
+  labs(x = "Term", y = "Interest Rate (%)")
+
+ggplot(data = loan_data, aes(x = term, y = loan_amnt)) + 
+  geom_boxplot() +
+  labs(x = "Term", y = "Loan Amount ($)")
+```
+
+- A partir do primeiro gráfico, nota-se que os empréstimos com prazo de 60 meses têm, em média, quase 4% a mais de juros quando comparado aos empréstimos com prazo de 36 meses.
+
+- A mediana (*linha horizontal preta*) dos empréstimos com prazo para 60 meses é quase o dobro do valor, quando comparado ao prazo de 36 meses.
+
+- É possível observar que os montantes de empréstimo com valores significativamente maiores tem seus prazos mais longos (60 meses).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+values_proportion <- function(data, var1, var2) {
+  sum_by <- data %>%
+    select_(var1, var2) %>%
+    group_by_(var2, var1) %>%
+    summarise(count = n())
+  
+  count_by <- by(sum_by$count, sum_by[[var2]], sum)
+  
+  count_by<- sapply(count_by, I)
+  
+  count_by <- data.frame(levels(sum_by[[var2]]), count_by)
+  
+  colnames(count_by) <- c(var2, "total")
+  
+  breakdown <- merge(sum_by, count_by, by = var2)
+  breakdown$percentage <- breakdown$count / breakdown$total
+  
+  return(breakdown)
+}
+```
+
+### Categorias dos empréstimos por prazo (%)
+
+O gráfico abaixo mostra a porcentagem de cada *categoria* distribuída nos prazos de **36 meses** e **60 meses**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+grade_term_proportion <- values_proportion(loan_data, "grade", "term")
+
+ggplot(data = grade_term_proportion, aes(x = term, y = percentage)) +
+  geom_bar(stat = "identity", aes(fill = grade)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  labs(x = "Term", y = "Percentage of Loans") +
+  scale_fill_brewer()
+```
+
+- Os empréstimos com prazo de **36 meses** são compostos principalmente das categorias *A*, *B* e *C*. Totalizando cerca de **83%** dos empréstimo feitos com este prazo.
+
+- Para o prazo de **60 meses** os empréstimos nas catagorias **A** e **B** caem drasticamente, enquanto a proporção dos empréstimos nas categorias **D**, **E**, **F** e **G** aumentam.
+
+### Status dos empréstimos por prazo (%)
+
+Em geral, pode-se pensar que os empréstimos com o prazo de **60 meses** e, consequentemente, maior valor, possam gerar um alto risco aos investidores.
+
+O gráfico abaixo mostra os status dos empréstimos para os prazos de **36 meses** e **60 meses**, mostrando a real situação.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+term_status_breakdown <- values_proportion(
+  subset(loan_data, !(loan_status %in% c("Does not meet the credit policy. Status:Charged Off",
+                              "Does not meet the credit policy. Status:Fully Paid"))),
+  "loan_status", "term")
+
+ggplot(data = term_status_breakdown, aes(x = term, y = percentage)) +
+  geom_bar(stat = "identity", aes(fill = loan_status)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25),
+                     labels = c("0%", "25%", "50%", "75%", "100%")) +
+  labs(x = "Term ", y = "Percentage of Loans")
+```
+
+- Podemos ver que os empréstimos de longo prazo não são, necessariamente, arriscados para os investidores em termos de inadimplência (*Charged Off* e *Default*) quando comparados aos de curto prazo.
+
+- Há um pouco mais de inadimplência *Charged Off* em empréstimos de 60 meses, mas não significativamente.
+
+- Há menos empréstimos totalmente pagos (*Fully Paid*) para o longo prazo, mas isso é compensado por um número similarmente maior de empréstimos em andamento (*Current*).
+
+### Status dos empréstimos por categoria (%)
+
+O valor do empréstimo não pode ser o único fator na determinação do risco do mesmo. Logo, quão precisa é a avaliação da *categoria* ao prever a taxa de sucesso do empréstimo?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+status_grade_breakdown <- values_proportion(subset(loan_data, !(loan_status %in% c("Does not meet the credit policy. Status:Charged Off", "Does not meet the credit policy. Status:Fully Paid"))), "loan_status", "grade")
+
+ggplot(data = status_grade_breakdown, aes(x = grade, y = percentage)) + 
+  geom_bar(stat = "identity", aes(fill = loan_status)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25), labels = c("0%", "25%", "50%", "75%", "100%")) + 
+  labs(x = "Grade", y = "Percentage of Loans")
+```
+
+- A *categoria* é, de fato, pelo menos um indicativo do risco de um empréstimo.
+
+- Podemos ver o aumento muito estável na proporção de empréstimos **Charged Off** e **Late** à medida em que as *categorias* decaem, de **A** para **G**).
+ 
+Apesar de não termos identificados, exatamente, o porquê da classificação feita pela Lending Club, parece que eles fizeram classificações precisas para os riscos dos empréstimos.
+
+### Propósito dos empréstimos por categoria (%)
+
+Vamos agora avaliar para quais propósitos esses empréstimos são utilizados.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+purpose_grade_breakdown <- values_proportion(loan_data, "purpose", "grade")
+
+ggplot(data = purpose_grade_breakdown, aes(x = grade, y = percentage)) + 
+  geom_bar(stat = "identity", aes(fill = purpose)) + 
+  labs(x = "Grade", y = "Percentage of Loans")
+```
+
+- Existem algumas relações de destaque que podemos tirar deste gráfico, onde pode-se notar que os empréstimos de *categorias* superior (**A**, **B**, **C**, **D**) têm uma proporção maior de empréstimos com *cartão de crédito* e uma proporção menor de empréstimos classificados como *pequenos negócios* e *outros*. Enquanto para *categorias* inferiores (**E**, **F**, **G**) a proporção dos empréstimos é inversamente proporcional a descrição anterior.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Purposes of loans
+purposes <- loan_data %>% select(purpose, loan_amnt) %>% na.omit() %>% group_by(purpose) %>% 
+  dplyr::summarise(volume = n(), average_amnt = sum(as.numeric(loan_amnt), rm.na = TRUE)/ n())
+
+purposes <- purposes[!purposes$purpose == '',]
+treemap(purposes, 
+       index = 'purpose', 
+       vSize = 'volume', 
+       vColor = 'average_amnt',
+       range = c(6000, 16000), 
+       type = 'manual', 
+       palette = c('yellow', 'green', 'orange', 'orange2', 'firebrick'), 
+       algorithm = 'pivotSize', 
+       sortID = '-size', 
+       title = 'Purposes of Loans', 
+       title.legend = 'Average Amount', 
+       fontsize.labels = 12, 
+       fontsize.legend = 10, 
+       fontface.labels = 1, 
+       position.legend = 'bottom', 
+       force.print.labels = T, 
+       border.col = 'white')
+```
+
+- A *consolidação de dívidas* é o motivo mais comum para empréstimos. A maior vantagem do empréstimo peer-to-peer é o seu baixo custo. Empréstimos emitidos pela Lending Club geralmente cobram taxas de juros mais baixas em comparação com o dinheiro fornecido pelos bancos tradicionais.
+
+- Os vários tamanhos no mapa da árvore acima são diretamente proporcionais ao volume de empréstimos com finalidades diferentes. Podemos saber que a *consolidação de dívidas* e o *cartão de crédito* são as razões mais populares para realização dos empréstimos.
+
+### Taxa de juros por categoria
+
+Os gráficos abaixo mostram a relação entre a **taxa de juros**, **categoria** e o **prazo** dos empréstimos concedidos pela Lending Club.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# tig: Term | Interest Rate | Grade
+tig <- select(loan_data, int_rate, sub_grade, grade, term, issue_year)
+
+# Stacked boxplots 
+graphic_tig <- ggplot(tig, aes(grade, int_rate)) 
+graphic_tig + 
+  geom_boxplot(outlier.size = 0.5, color = 'black') +
+  facet_grid(term ~ issue_year) + 
+  labs(title = 'Interest Rate Distribution by Grade', x = 'Grade', y = 'Interest Rate (%)') + 
+  theme_bw()
+
+# Interest rate, term and sub_grade:
+tisub <- mutate(tig, term = ifelse(term == ' 36 months', '36', '60'))
+
+tisub_abcd <- filter(tisub, grade %in% c('A', 'B', 'C', 'D'))
+tisub_efg <- filter(tisub, grade %in% c('E', 'F', 'G'))
+```
+
+- Ao observar os gráficos, vemos que as taxas de juros aumentaram de 2010 a 2015, especialmente para empréstimos de baixa *categoria*, como os graus D, E, F, G.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Grade A, B, C and D
+graphic_tisub_abcd <- ggplot(tisub_abcd, aes(term, int_rate))
+
+graphic_tisub_abcd + 
+  geom_boxplot(outlier.size = 0.5, aes(color = term)) + 
+  guides(color = F) + 
+  facet_wrap(~ sub_grade, nrow = 1) + 
+  labs(title = 'Interest Rate Distribution by Term of Grades A, B, C and D', x = 'Term', y = 'Interest Rate (%)') + 
+  theme_bw()
+
+# Grade E, F and G
+graphic_tisub_efg <- ggplot(tisub_efg, aes(term, int_rate))
+
+graphic_tisub_efg + 
+  geom_boxplot(outlier.size = 0.5, aes(color = term)) + 
+  guides(color = F) + 
+  facet_wrap(~ sub_grade, nrow = 1) + 
+  labs(title = 'Interest Rate Distribution by Term of Grades E, F and G', x = 'Term', y = 'Interest Rate (%)') + 
+  theme_bw()
+```
+
+- Como visto nos gráficos acima, podemos ver que à medida que o *subcategoria* diminui, a taxa de juros aumenta em geral mas para o grau G1-G5, a taxa de juros em empréstimos de 60 meses parece inalterada e a taxa de juros em empréstimos de 36 meses com o grau G5 parece um outlier.
+
+- As *taxas de juros* de diferentes *prazos* não são tão diferentes como a teoria do risco implica.
+
+## Gráficos finais e resumos
+
+A gráfico a seguir mostra a distribuição dos **Status** dos empréstimos na Lending Club. A maioria empréstimos parecem estar atualizados em relação aos pagamentos (*Current*), seguidos de empréstimos *Totalmente Pagos* (*Fully Paid*) e, cerca de *5%* dos empréstimos estão classificados como inadimplentes por longo tempo (*Charged Off*).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+loan_status_count <- loan_data %>%
+  select(loan_status) %>%
+  group_by(loan_status) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count))
+
+ggplot(data = loan_status_count, aes(x = loan_status, y = count)) + 
+  geom_bar(stat="identity", aes(fill = loan_status)) + 
+  scale_x_discrete(limits = c("Current", "Fully Paid", "Charged Off",
+                              "Late (31-120 days)", "Issued", "In Grace Period",
+                              "Late (16-30 days)", "Default"),
+                   labels = c("Current", "Fully\nPaid", "Charged\nOff",
+                              "Late\n(31-120 days)", "Issued", "In Grace\nPeriod",
+                              "Late\n(16-30 days)", "Default")) + 
+  scale_y_continuous(breaks = seq(0, 600000, 100000),
+                     labels = c("0", "100000", "200000", "300000", "400000", "500000", "600000")) + 
+  labs(title = "Loan's Status", x = "Status", y = "Number of Loans") + 
+  guides(fill = FALSE) + 
+  geom_text(aes(label = scales::percent(percentage), y = percentage ), stat= "identity", vjust = -0.75)
+```
+
+---
+
+As *Taxas de Juros* (*Interest Rate*) cobrada para empréstimos com prazo de **60 meses** são mais altos devido ao maior risco atribuído a estes empréstimos, quando comparados aos empréstimos com prazo de **36 meses** que têm riscos menores de inadimplência.
+
+```{r echo=FALSE, Plot_Two}
+ggplot(data = loan_data, aes(x = term, y = int_rate)) + 
+  geom_boxplot() + 
+  labs(title = "Term's Interest Rate", x = "Term", y = "Interest Rate (%)")
+```
+
+---
+
+Pelo fato dos empréstimos emitidos pela Lending Club cobrarem taxas de juros mais baixas em comparação com os bancos tradicionais, os tomadores de empréstimos preferem utilizar o dinheiro para e consolidarem suas dívidas (*Debt Consolidation*).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Purposes of loans
+purposes <- loan_data %>% select(purpose, loan_amnt) %>% na.omit() %>% group_by(purpose) %>% 
+  dplyr::summarise(volume = n(), average_amnt = sum(as.numeric(loan_amnt), rm.na = TRUE)/ n())
+
+purposes <- purposes[!purposes$purpose == '',]
+treemap(purposes, 
+       index = 'purpose', 
+       vSize = 'volume', 
+       vColor = 'average_amnt',
+       range = c(6000, 16000), 
+       type = 'manual', 
+       palette = c('yellow', 'green', 'orange', 'orange2', 'firebrick'), 
+       algorithm = 'pivotSize', 
+       sortID = '-size', 
+       title = 'Purposes of Loans', 
+       title.legend = 'Average Amount', 
+       fontsize.labels = 12, 
+       fontsize.legend = 10, 
+       fontface.labels = 1, 
+       position.legend = 'bottom', 
+       force.print.labels = T, 
+       border.col = 'white')
+```
+
+## Reflexão
+
+Neste projeto, tivemos uma concisa e compreensível introdução sobre o crescimento do negócio principal da Lending Club, desde sua criação. Certamente, a Lending Club está crescendo rapidamente, mas o aumento do volume e da quantidade de empréstimos nem sempre é constante ou exponencial, mas errático, podendo descrescer. O que é controverso, já que esperamos que as empresas públicas sejam mais estáveis, o que significa que alguns clientes ainda podem não confiar totalmente na Lending Club e produtos oferecidos. E a drástica flutuação do preço das ações da Lending Club também comprova esta conclusão.
+
+De todo o conjunto de dados, foram analisadas 15 variáveis diferentes para ver o que poderíamos aprender sobre a Lending Club - seu crescimento, seus retornos aos investidores, seus empréstimos e seus clientes.
+
+Examinamos as características da base de clientes da Lending Club e a característica dos empréstimos que eles concedem. Analisamos os fatores que potencialmente influenciam a determinação e a classificação do risco de um empréstimo e como esses fatores se correlacionam com o status do empréstimo e a chance de pagamento.
+
+No entanto, o modelo de negócios da Lending Club ainda traz uma grande vantagem sobre os empréstimo oferecidos pelos bancos tradicionais. E a partir dos últimos dados de crescimento, ainda acreditamos que os empréstimos emitidos pela Lending Club continuarão a crescer rapidamente.
+
+*A Lending Club está aprimorando sua tecnologia de avaliação de risco e crédito e tentando ampliar seu mercado de pessoas para empresas.*
+
+Há ainda muitas perguntas a serem realizadas e respostas a serem descobertas sobre essa vasta base de dados. O tamanho do conjunto de dados é tão grande que qualquer análise desse tipo só pode se concentrar em um subconjunto dos dados disponíveis.
